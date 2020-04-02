@@ -2,8 +2,9 @@
 
 #include "pch.h"
 
-namespace Configuration
+class Configuration
 {
-	const int SIZE_OF_PTR = 4;
-	const int SIZE_OF_INT = 4, SIZE_OF_BOOL = 1;
-}
+public:
+	static const int SIZE_OF_PTR = 4;
+	static const int SIZE_OF_INT = 4, SIZE_OF_BOOL = 1;
+};
