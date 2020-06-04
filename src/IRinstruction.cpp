@@ -2,12 +2,10 @@
 
 void Quadruple::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
-	if(Operand::isRegister(src1->category()))
-		src1 = table[std::static_pointer_cast<Register>(src1)];
-	if (src2 != nullptr && Operand::isRegister(src2->category()))
-		src2 = table[std::static_pointer_cast<Register>(src2)];
-	if (op == STORE && Operand::isRegister(dst->category())) // dst is also a use-register
-		dst = table[std::static_pointer_cast<Register>(dst)];
+	updateRegister(src1, table);
+	if (src2 != nullptr) updateRegister(src2, table);
+	if (op == STORE) // dst is also a use-register
+		updateRegister(dst, table);
 	updateUseRegs();
 }
 
@@ -16,16 +14,28 @@ void Quadruple::updateUseRegs()
 	useRegs.clear();
 	if (Operand::isRegister(src1->category()))
 		useRegs.push_back(std::static_pointer_cast<Register>(src1));
-	if (src2 != nullptr && Operand::isRegister(src1->category()))
+	if (src2 != nullptr && Operand::isRegister(src2->category()))
 		useRegs.push_back(std::static_pointer_cast<Register>(src2));
 	if (op == STORE && Operand::isRegister(dst->category())) // dst is also a use-register
 		useRegs.push_back(std::static_pointer_cast<Register>(dst));
 }
 
+void Quadruple::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
+{
+	if (src1 == old) src1 = _new;
+	if (src2 == old) src2 = _new;
+	updateUseRegs();
+}
+
+std::shared_ptr<Register> Quadruple::getDefReg()
+{
+	if (op == STORE) return nullptr;
+	return std::static_pointer_cast<Register>(dst);
+}
+
 void Branch::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
-	if (Operand::isRegister(condition->category()))
-		condition = table[std::static_pointer_cast<Register>(condition)];
+	updateRegister(condition, table);
 	updateUseRegs();
 }
 
@@ -36,13 +46,17 @@ void Branch::updateUseRegs()
 		useRegs.push_back(std::static_pointer_cast<Register>(condition));
 }
 
+void Branch::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
+{
+	if(condition == old) condition = _new;
+	updateUseRegs();
+}
+
 void Call::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
-	for (auto &arg : args)
-		if (Operand::isRegister(arg->category()))
-			arg = table[std::static_pointer_cast<Register>(arg)];
-	if (Operand::isRegister(object->category()))
-		object = table[std::static_pointer_cast<Register>(object)];
+	for (auto &arg : args) updateRegister(arg, table);
+	if (object != nullptr && Operand::isRegister(object->category()))
+		updateRegister(object, table);
 }
 
 void Call::updateUseRegs()
@@ -51,13 +65,14 @@ void Call::updateUseRegs()
 	for (auto &arg : args)
 		if (Operand::isRegister(arg->category()))
 			useRegs.push_back(std::static_pointer_cast<Register>(arg));
-	if (Operand::isRegister(object->category()))
+	if (object != nullptr && Operand::isRegister(object->category()))
 		useRegs.push_back(std::static_pointer_cast<Register>(object));
 }
 
 std::shared_ptr<Register> Call::getDefReg()
 {
 	if (result != nullptr) return std::static_pointer_cast<Register>(result);
+	return nullptr;
 }
 
 void Call::setDefReg(std::shared_ptr<Register> _defReg)
@@ -65,10 +80,19 @@ void Call::setDefReg(std::shared_ptr<Register> _defReg)
 	result = _defReg;
 }
 
+void Call::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
+{
+	if (result == old) result = _new;
+	for (auto &arg : args)
+		if (arg == old) arg = _new;
+	if (object == old) object = _new;
+	updateUseRegs();
+}
+
 void Return::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	if (Operand::isRegister(value->category()))
-		value = table[std::static_pointer_cast<Register>(value)];
+		updateRegister(value, table);
 	updateUseRegs();
 }
 
@@ -79,10 +103,15 @@ void Return::updateUseRegs()
 		useRegs.push_back(std::static_pointer_cast<Register>(value));
 }
 
+void Return::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
+{
+	if (value == old) value = _new;
+	updateUseRegs();
+}
+
 void Malloc::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
-	if (Operand::isRegister(size->category()))
-		size = table[std::static_pointer_cast<Register>(size)];
+	updateRegister(size, table);
 	updateUseRegs();
 }
 
@@ -93,6 +122,17 @@ void Malloc::updateUseRegs()
 		useRegs.push_back(std::static_pointer_cast<Register>(size));
 }
 
+void Malloc::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
+{
+	if(size == old) size = _new;
+	updateUseRegs();
+}
+
+
+void PhiFunction::appendRelatedReg(std::shared_ptr<Register> reg, std::shared_ptr<BasicBlock> from)
+{
+	relatedReg.push_back(std::make_pair(reg,from));
+}
 
 std::shared_ptr<Register> PhiFunction::getDefReg()
 {
@@ -102,4 +142,25 @@ std::shared_ptr<Register> PhiFunction::getDefReg()
 void PhiFunction::setDefReg(std::shared_ptr<Register> _defReg)
 {
 	dst = _defReg;
+}
+
+void updateRegister(std::shared_ptr<Operand>& reg, std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+{
+	if (!Operand::isRegister(reg->category())) return;
+	auto it = table.find(std::static_pointer_cast<Register>(reg));
+	if (it != table.end()) reg = it->second;
+}
+
+void IRInstruction::replaceBy(std::shared_ptr<IRInstruction> i)
+{
+	i->prev = prev;
+	i->next = next;
+	if (next != nullptr) next->prev = i;
+	if(prev.lock() != nullptr) prev.lock()->next = i;
+}
+
+void IRInstruction::removeThis()
+{
+	if (next != nullptr) next->prev = prev;
+	if (prev.lock() != nullptr) prev.lock()->next = next;
 }

@@ -11,6 +11,52 @@ void IR_Generator::visit(ProgramAST * node)
 		if (!decl->isVarDecl()) decl->accept(*this);
 }
 
+
+void IR_Generator::generate()
+{
+	builtInFunctionInit();
+	visit(ast.get());
+}
+
+void IR_Generator::builtInFunctionInit()
+{
+	std::shared_ptr<FunctionSymbol> symbol;
+	// member functions of class <string>
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->getStringSymbol()->resolve("length"));
+	symbol->setModule(ir->stringLength);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->getStringSymbol()->resolve("parseInt"));
+	symbol->setModule(ir->parseInt);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->getStringSymbol()->resolve("substring"));
+	symbol->setModule(ir->substring);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->getStringSymbol()->resolve("ord"));
+	symbol->setModule(ir->ord);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("getString"));
+	symbol->setModule(ir->getString);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("print"));
+	symbol->setModule(ir->print);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("println"));
+	symbol->setModule(ir->println);
+
+	//functions about <int>
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("getInt"));
+	symbol->setModule(ir->getInt);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("toString"));
+	symbol->setModule(ir->toString);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("printInt"));
+	symbol->setModule(ir->printInt);
+
+	symbol = std::static_pointer_cast<FunctionSymbol>(global->resolve("printlnInt"));
+	symbol->setModule(ir->printlnInt);
+}
+
 void IR_Generator::visit(MultiVarDecl * node)
 {
 	auto vars = node->getDecls();
@@ -20,36 +66,51 @@ void IR_Generator::visit(MultiVarDecl * node)
 void IR_Generator::visit(VarDeclStmt * node)
 {
 	auto varSymbol = node->getVarSymbol();
-	auto reg = std::make_shared<VirtualReg>(Operand::REG_REF,node->getIdentifier()->name);
+	std::shared_ptr<VirtualReg> reg;
+	reg = std::make_shared<VirtualReg>(Operand::REG_VAL,node->getIdentifier()->name);
 	varSymbol->setReg(reg);
-	if (scanGlobalVar)  // global variable
+	if (scanGlobalVar) {  // record global variable so that we can print it later 
 		ir->addGlobalVar(reg);
+		reg->markAsGlobal();
+	}
 	else {
-		if (currentFunction != nullptr && node->isArgument())
+		if (currentFunction != nullptr && node->isArgument()) {  // add argument to function module 
 			currentFunction->appendArg(reg);
+		}
 		auto initExpr = node->getInitExpr();
 		if (initExpr != nullptr) {
-			initExpr->accept(*this);
+			//initExpr->accept(*this);
 			assign(reg, initExpr.get());
 		}
 	}
 }
 
-void IR_Generator::visit(FunctionDecl * node)   // Function is linked to function symbol here
+void IR_Generator::visit(FunctionDecl * node)   // Function module is linked to function symbol here
 {
 	auto symbol = node->getFuncSymbol();
-	auto funcModule = std::make_shared<Function>(symbol->getSymbolName());    
+	auto funcModule = newFunction(symbol->getSymbolName(), node->getRetType());    
 	if (currentClsSymbol != nullptr)
 		funcModule->setObjRef(std::make_shared<VirtualReg>(Operand::REG_VAL, "this"));
 	symbol->setModule(funcModule);
 	currentFunction = funcModule;
-	ir->addFunction(funcModule);
 	currentBlock = currentFunction->getEntry();
-	
 	auto args = node->getArgs();
 	for (auto &arg : args) arg->accept(*this);
 	node->getBody()->accept(*this);
 
+	if (!currentBlock->ended()) {  // no return instruction
+		if (node->getRetType() == nullptr)
+			currentBlock->endWith(std::make_shared<Return>(currentBlock, nullptr));
+		else
+			currentBlock->endWith(std::make_shared<Return>(currentBlock, std::make_shared<Immediate>(0)));
+	}
+	mergeReturnIntoExit(node, currentFunction);
+
+	currentFunction = nullptr;
+	ir->addFunction(funcModule);
+
+	//build dominance tree
+	funcModule->setDT(std::make_shared<DominatorTree>(funcModule));
 }
 
 /*
@@ -65,9 +126,10 @@ void IR_Generator::visit(ClassDecl * node)
 	for (auto &member : members) 
 		if(!member->isVarDecl()){
 			auto symbol = std::static_pointer_cast<FunctionDecl>(member)->getFuncSymbol();
+			auto retType = std::static_pointer_cast<FunctionDecl>(member)->getRetType();
 			auto funcName = node->getClsSymbol()->getSymbolName() 
 				+ "::" + symbol->getScopeName();
-			symbol->setModule(std::make_shared<Function>(funcName));
+			symbol->setModule(newFunction(funcName, retType));
 		}
 	currentClsSymbol = nullptr;
 }
@@ -233,7 +295,7 @@ void IR_Generator::visit(IdentifierExpr * node)
 void IR_Generator::visit(BinaryExpr * node)
 {
 	auto op = node->getOperator();
-	if (op == BinaryExpr::INDEX) arrayAccess(node);
+	if (op == BinaryExpr::INDEX) return arrayAccess(node);
 	else if (op == BinaryExpr::ASSIGN) {
 		node->getLHS()->accept(*this);
 		return assign(node->getLHS()->getResultOprand(), node->getRHS().get());
@@ -255,6 +317,10 @@ void IR_Generator::visit(BinaryExpr * node)
 		if (op == BinaryExpr::ADD) func = ir->stringAdd;
 		else if (op == BinaryExpr::EQ) func = ir->stringEQ;
 		else if (op == BinaryExpr::NEQ) func = ir->stringNEQ;
+		else if (op == BinaryExpr::LESS) func = ir->stringLESS;
+		else if (op == BinaryExpr::LEQ) func = ir->stringLEQ;
+		else if (op == BinaryExpr::GREATER) func = ir->stringGREATER;
+		else if (op == BinaryExpr::GEQ) func = ir->stringGEQ;
 		auto call = std::make_shared<Call>(currentBlock, func, result);
 		call->addArg(lhsReg); 
 		call->addArg(rhsReg);
@@ -286,7 +352,7 @@ void IR_Generator::visit(BinaryExpr * node)
 			break;
 		case BinaryExpr::NEQ: instOp = Quadruple::NEQ;
 			break;
-		case BinaryExpr::EQ: instOp = Quadruple::NEQ;
+		case BinaryExpr::EQ: instOp = Quadruple::EQ;
 			break;
 		case BinaryExpr::LSHIFT: instOp = Quadruple::LSHIFT;
 			break;
@@ -319,7 +385,10 @@ void IR_Generator::visit(UnaryExpr * node)
 			operand->setFalseBlock(node->getTrueBlock());
 			operand->accept(*this);
 		}
-		else {} // is this necessary ? 
+		else {
+			operand->setResultOprand(std::make_shared<VirtualReg>());
+			assign(operand->getResultOprand(), node);
+		} 
 		return;
 	}
 	Quadruple::Operator instOp;
@@ -500,10 +569,11 @@ void IR_Generator::visit(BoolValue * node)
 
 void IR_Generator::visit(StringValue * node)
 {
-	auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__static_str__");
+	auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__str");  // 
 	auto str = std::make_shared<StaticString>(reg, node->getText());
-	node->setResultOprand(reg);
-	// Need to put it into IR?
+	node->setResultOprand(str);  // reg or str?
+	reg->markAsGlobal();
+	ir->addStringConst(str);
 }
 
 void IR_Generator::visit(NullValue * node)
@@ -593,6 +663,27 @@ IR_Generator::allocateMemory(std::shared_ptr<Operand> addrReg, std::shared_ptr<O
 	}
 }
 
+void IR_Generator::mergeReturnIntoExit(FunctionDecl *node, std::shared_ptr<Function> f)
+{
+	auto rets = f->getReturnIntrs();
+	if (rets.size() > 1) {
+		auto exit = f->getExit();
+		auto result = node->getRetType() == nullptr ? nullptr : std::make_shared<VirtualReg>();
+
+		for (auto &ret : rets) {
+			removeInstruction(ret);
+			if (ret->getValue() != nullptr)
+				ret->getBlock()->append_back(std::make_shared<Quadruple>(
+					ret->getBlock(), Quadruple::MOVE, result, ret->getValue()));
+			ret->getBlock()->endWith(std::make_shared<Jump>(ret->getBlock(), exit));
+		}
+
+		exit->endWith(std::make_shared<Return>(exit, result));
+	}
+	else f->setExit(rets[0]->getBlock());
+}
+
+
 void IR_Generator::arraySize(MemberFuncCallExpr * node)
 {
 	node->getInstance()->accept(*this);
@@ -610,7 +701,7 @@ void IR_Generator::arrayAccess(BinaryExpr * node)
 	lhs->accept(*this);
 	rhs->accept(*this);
 	auto typeSymbol = std::static_pointer_cast<ArraySymbol>(lhs->getSymbolType());
-	auto baseAddr = getValueReg(rhs->getResultOprand());
+	auto baseAddr = getValueReg(lhs->getResultOprand());
 	auto index = getValueReg(rhs->getResultOprand());
 	// the result is a reference(i.e. address in RAM)
 	auto result = std::make_shared<VirtualReg>(Operand::REG_REF);
@@ -725,7 +816,7 @@ std::shared_ptr<Operand>IR_Generator::getValueReg(std::shared_ptr<Operand> reg)
 	if (reg->category() != Operand::REG_REF) return reg;
 	auto temp = std::make_shared<VirtualReg>(Operand::REG_VAL);
 	currentBlock->append_back(std::make_shared<Quadruple>(
-		currentBlock, Quadruple::LOAD, reg, temp));
+		currentBlock, Quadruple::LOAD, temp, reg));
 	return temp;
 }
 

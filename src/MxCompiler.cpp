@@ -2,13 +2,15 @@
 
 //#define SHOW_TOKENS
 
-void MxCompiler::complie()
+void MxCompiler::compile()
 {
 	getCode();
 	parse();
 	buildAST();
 	semanticCheck();
 	generateIR();
+	optimize();
+	codegen();
 }
 
 void MxCompiler::semantic()
@@ -23,7 +25,7 @@ void MxCompiler::getCode()
 {
 	src.open(fileName);
 	if (!src) 
-		throw Error("file not found",Position());
+		throw Error("file not found");
 	std::cout << "File found." << std::endl;
 	std::clog << "--------------------Open: " << fileName << "-------------------\n";
 }
@@ -32,7 +34,7 @@ void MxCompiler::parse()
 {
 	lexer = std::make_shared<Lexer>(src);
 	tokens = lexer->getTokens();
-
+	src.close();
 	
 #ifdef  SHOW_TOKENS			//print tokens to log.txt
 	std::clog << "------------------------Tokens---------------------\n";
@@ -50,7 +52,7 @@ void MxCompiler::buildAST()
 	parser = std::make_shared<Parser>(tokens);
 	ast = parser->getAST();
 	if (!parser->finished()) 
-		throw Error("redundant tokens.", Position());
+		throw Error("redundant tokens.");
 	std::cout << "Build AST successfully!" << std::endl;
 }
 
@@ -62,9 +64,33 @@ void MxCompiler::semanticCheck()
 	std::cout << "Passed semantic check!" << std::endl;
 }
 
+void MxCompiler::printIR(std::ostream &os)
+{
+	std::make_shared<IR_Printer>(ir, os)->print();
+}
+
 void MxCompiler::generateIR()
 {
-	irGenerator = std::make_shared<IR_Generator>(environment->globalScope());
-	irGenerator->visit(ast.get());
+	irGenerator = std::make_shared<IR_Generator>(environment->globalScope(),ast);
+	irGenerator->generate();
 	ir = irGenerator->getIR();
+	std::make_shared<GlobalVarResolver>(ir)->run();
+
+	std::cout << "IR generation completed." << std::endl;
+}
+
+void MxCompiler::optimize()
+{
+	opt = std::make_shared<Optimizer>(ir);
+	opt->optimize();
+	// std::make_shared<IR_Printer>(ir, std::cout)->print();
+}
+
+void MxCompiler::codegen()
+{
+	std::ofstream asmfile("output.s");
+	codeGenerator = std::make_shared<RISCVCodeGenerator>(ir, asmfile);
+	codeGenerator->generate();
+	codeGenerator->emit();
+	asmfile.close();
 }

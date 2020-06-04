@@ -3,6 +3,7 @@
 #include "pch.h"
 #include "Operand.h"
 #include "astnode.h"
+#include "cfg_visitor.h"
 
 class BasicBlock;
 class Function;
@@ -21,22 +22,33 @@ public:
 		QUADR, 
 		CALL, RET, JUMP, BRANCH,   // control-related instructions
 		ALLOC,
-		PHI
+		PHI,
+		// Assembly instructions
+		BTYPE, ITYPE, RTYPE,
 	};
-	IRInstruction(InstrTag _tag, std::shared_ptr<BasicBlock> block) 
+
+
+	IRInstruction(InstrTag _tag, std::weak_ptr<BasicBlock> block) 
 		:tag(_tag), residingBlock(block){}
 	
-	std::shared_ptr<BasicBlock> getBlock() { return residingBlock; }
+	InstrTag getTag() { return tag; }
+
+
+	std::shared_ptr<BasicBlock> getBlock() { return residingBlock.lock(); }
 
 	std::shared_ptr<IRInstruction> getNextInstr() { return next;}
 	void setNextInstr(const std::shared_ptr<IRInstruction> &_next) { next = _next; }
 
-	std::shared_ptr<IRInstruction> getPreviousInstr() { return prev; }
-	void setPreviousInstr(const std::shared_ptr<IRInstruction> &_prev) { prev = _prev; }
+	std::shared_ptr<IRInstruction> getPreviousInstr() { return prev.lock();}
+	void setPreviousInstr(const std::shared_ptr<IRInstruction>&_prev) { prev = _prev; }
+
+	// Warning: do no use this directly, use replaceInstruction() instead
+	void replaceBy(std::shared_ptr<IRInstruction> i);
+	// Warning: do no use this directly, use removeInstruction() instead
+	void removeThis();
 
 	std::vector<std::shared_ptr<Register> > &getUseRegs() { return useRegs; }
 
-	InstrTag getTag() { return tag; }
 	// virtual functions (do nothing by default)
 	virtual void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table) {}
@@ -44,11 +56,15 @@ public:
 	virtual std::shared_ptr<Register> getDefReg() { return nullptr; }
 	virtual void setDefReg(std::shared_ptr<Register> _defReg) {}
 
+	virtual void accept(CFG_Visitor &vis) = 0;
+
+	virtual void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) {}
 	
 protected:
-	std::shared_ptr<BasicBlock> residingBlock;
+	std::weak_ptr<BasicBlock> residingBlock;
 	std::vector<std::shared_ptr<Register> > useRegs;
-	std::shared_ptr<IRInstruction> next, prev;
+	std::shared_ptr<IRInstruction> next;
+	std::weak_ptr<IRInstruction> prev;  // use weak_ptr to prevent reference cycle
 	InstrTag tag;
 };
 
@@ -73,16 +89,20 @@ public:
 
 		BITAND, BITOR, BITXOR,
 		//unary
-		NEG, INV,
+		NEG, INV, MOVE,
 		// momory access
-		LOAD, STORE,
-		MOVE
+		LOAD, STORE
 	};
-	Quadruple(std::shared_ptr<BasicBlock> _block, Operator _op,
+	Quadruple(std::weak_ptr<BasicBlock> _block, Operator _op,
 		std::shared_ptr<Operand> _dst,
 		std::shared_ptr<Operand> _src1, std::shared_ptr<Operand> _src2 = nullptr)  
-		:IRInstruction(QUADR,_block), op(_op),dst(_dst),src1(_src1), src2(_src2) {}
+		:IRInstruction(QUADR,_block), op(_op),dst(_dst),src1(_src1), src2(_src2) {
+		updateUseRegs();
+	}
 
+	static bool isCompare(Operator op) {
+		return op >= LESS && op <= EQ;
+	}
 	Operator getOp() { return op; }
 	std::shared_ptr<Operand> getSrc1() { return src1; }
 	std::shared_ptr<Operand> getSrc2() { return src2; }
@@ -92,10 +112,13 @@ public:
 	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	void updateUseRegs()override;
+	
+	void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) override;
 
-	std::shared_ptr<Register> getDefReg() override
-	{ return std::static_pointer_cast<Register>(dst); } // is this safe ?
+	std::shared_ptr<Register> getDefReg() override;
 	void setDefReg(std::shared_ptr<Register> _defReg) override { dst = _defReg; }
+
+	ACCEPT_CFG_VISITOR
 private:
 	std::shared_ptr<Operand> dst, src1, src2;
 	Operator op;
@@ -107,23 +130,33 @@ Constructor: Branch(block, cond, trueBlock, falseBlock)
 */
 class Branch : public IRInstruction {
 public:
-	Branch(std::shared_ptr<BasicBlock> _residingBlock,
+	Branch(std::weak_ptr<BasicBlock> _residingBlock,
 		std::shared_ptr<Operand> _cond,
 		std::shared_ptr<BasicBlock> _true, std::shared_ptr<BasicBlock> _false)
 		:IRInstruction(BRANCH,_residingBlock),
-		condition(_cond), trueBlock(_true), falseBlock(_false) {}
+		condition(_cond), trueBlock(_true), falseBlock(_false) {
+		updateUseRegs();
+	}
 
 	std::shared_ptr<Operand> getCondition() { return condition; }
-	std::shared_ptr<BasicBlock> getTrueBlock() { return trueBlock; }
-	std::shared_ptr<BasicBlock> getFalseBlock() { return falseBlock; }
+	std::shared_ptr<BasicBlock> getTrueBlock() { return trueBlock.lock(); }
+	std::shared_ptr<BasicBlock> getFalseBlock() { return falseBlock.lock(); }
 
+	void replaceTargetBlock(std::shared_ptr<BasicBlock> old, std::shared_ptr<BasicBlock> b) {
+		if (trueBlock.lock() == old) trueBlock = b;
+		else if (falseBlock.lock() == old) falseBlock = b;
+	}
 	//override functions (there is no def-register in branch instructions)
 	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	void updateUseRegs()override;
+
+	void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) override;
+
+	ACCEPT_CFG_VISITOR
 private:
 	std::shared_ptr<Operand> condition;
-	std::shared_ptr<BasicBlock> trueBlock, falseBlock;
+	std::weak_ptr<BasicBlock> trueBlock, falseBlock;
 };
 
 /*
@@ -132,14 +165,16 @@ Constructor: Call(block, funcModule, result = nullptr);
 */
 class Call : public IRInstruction {
 public:
-	Call(std::shared_ptr<BasicBlock> _block,
+	Call(std::weak_ptr<BasicBlock> _block,
 		std::shared_ptr<Function> _func, std::shared_ptr<Operand> _result = nullptr)
-		: IRInstruction(CALL, _block), func(_func), result(_result) {}
+		: IRInstruction(CALL, _block), func(_func), result(_result) {
+		updateUseRegs();
+	}
 
 	std::shared_ptr<Function> getFunction() { return func; }
 
 	std::vector<std::shared_ptr<Operand> > getArgs() { return args; }
-	void addArg(std::shared_ptr<Operand> arg) { args.emplace_back(arg); }
+	void addArg(std::shared_ptr<Operand> arg) { args.emplace_back(arg); updateUseRegs(); }
 	std::shared_ptr<Operand> getResult() { return result; }
 	void setResult(const std::shared_ptr<Operand> &_res) { result = _res; }
 
@@ -153,6 +188,10 @@ public:
 
 	virtual std::shared_ptr<Register> getDefReg() override;
 	virtual void setDefReg(std::shared_ptr<Register> _defReg) override;
+
+	void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) override;
+
+	ACCEPT_CFG_VISITOR
 private:
 	std::shared_ptr<Function> func;
 	std::shared_ptr<Operand> result;
@@ -163,9 +202,11 @@ private:
 
 class Malloc : public IRInstruction {
 public:
-	Malloc(std::shared_ptr<BasicBlock> block,
+	Malloc(std::weak_ptr<BasicBlock> block,
 		std::shared_ptr<Operand> _size, std::shared_ptr<Operand> _ptr)
-		:IRInstruction(ALLOC, block), size(_size), ptr(_ptr) {}
+		:IRInstruction(ALLOC, block), size(_size), ptr(_ptr) {
+		updateUseRegs();
+	}
 
 	std::shared_ptr<Operand> getSize() { return size; }
 	void setSize(const std::shared_ptr<Operand> &_size) { size = _size; }
@@ -182,35 +223,46 @@ public:
 		return std::static_pointer_cast<Register>(ptr);
 	} // is this safe ?
 	void setDefReg(std::shared_ptr<Register> _defReg) override { ptr = _defReg; }
+
+	void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) override;
+
+	ACCEPT_CFG_VISITOR
 private:
 	std::shared_ptr<Operand> size, ptr;
 };
 
 class Return : public IRInstruction {
 public: 
-	Return(std::shared_ptr<BasicBlock> block, std::shared_ptr<Operand> _value)
-		:IRInstruction(RET, block), value(_value) {}
+	Return(std::weak_ptr<BasicBlock> block, std::shared_ptr<Operand> _value)
+		:IRInstruction(RET, block), value(_value) {
+		updateUseRegs();
+	}
 
 	std::shared_ptr<Operand> getValue() { return value; }
 
 	// override functions (no def-register here)
-	virtual void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
-	virtual void updateUseRegs()override;
+	void updateUseRegs()override;
+
+	void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) override;
+	ACCEPT_CFG_VISITOR
 private:
 	std::shared_ptr<Operand> value;
 };
 
 class Jump : public IRInstruction {
 public:
-	Jump(std::shared_ptr<BasicBlock> _residing, std::shared_ptr<BasicBlock> _target)
+	Jump(std::weak_ptr<BasicBlock> _residing, std::weak_ptr<BasicBlock> _target)
 		:IRInstruction(JUMP, _residing), target(_target) {}
 
-	std::shared_ptr<BasicBlock> getTarget() { return target; }
-	void setTarget(const std::shared_ptr<BasicBlock> &_target) { target = _target; }
+	std::shared_ptr<BasicBlock> getTarget() { return target.lock(); }
+	void setTarget(const std::weak_ptr<BasicBlock> &_target) { target = _target; }
 	// virtual functions by default
+
+	ACCEPT_CFG_VISITOR
 private:
-	std::shared_ptr<BasicBlock> target;
+	std::weak_ptr<BasicBlock> target;
 };
 
 /*
@@ -218,16 +270,26 @@ private:
 */
 class PhiFunction : public IRInstruction {
 public:
-	PhiFunction(std::shared_ptr<BasicBlock> _residingBlock, std::shared_ptr<Register> _dst)
-		:IRInstruction(PHI, _residingBlock), dst(_dst) {}
+	PhiFunction(std::weak_ptr<BasicBlock> _residingBlock, std::shared_ptr<Register> _dst)
+		:IRInstruction(PHI, _residingBlock), dst(_dst), origin(_dst){}
 
 	
-	void appendRelatedReg(std::shared_ptr<Register> reg) { relatedReg.insert(reg); }
+	void appendRelatedReg(std::shared_ptr<Register> reg, std::shared_ptr<BasicBlock> from);
+	std::vector<std::pair<std::shared_ptr<Register>,std::weak_ptr<BasicBlock> > > 
+		&getRelatedRegs() { return relatedReg; }
+
 	std::shared_ptr<Register> getDst() { return dst; }
+	std::shared_ptr<Register> getOrigin() { return origin; }
 	//override functions
 	virtual std::shared_ptr<Register> getDefReg() override;
 	virtual void setDefReg(std::shared_ptr<Register> _defReg) override;
+
+	ACCEPT_CFG_VISITOR
 private:
-	std::shared_ptr<Register> dst;
-	std::unordered_set<std::shared_ptr<Register> > relatedReg;
+	std::shared_ptr<Register> dst,origin;
+	std::vector<std::pair<std::shared_ptr<Register>, std::weak_ptr<BasicBlock> > > relatedReg;
 };
+
+// Check if reg is a register and renew it if it is in the table
+void updateRegister(std::shared_ptr<Operand> &reg,
+	std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table);

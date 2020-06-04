@@ -2,7 +2,10 @@
 
 void BasicBlock::append_front(std::shared_ptr<IRInstruction> instr)
 {
-	if (front == nullptr) front = back = instr;
+	if (front == nullptr) {
+		front = instr;
+		back = instr;
+	}
 	else {
 		front->setPreviousInstr(instr);
 		instr->setNextInstr(front);
@@ -12,19 +15,37 @@ void BasicBlock::append_front(std::shared_ptr<IRInstruction> instr)
 
 void BasicBlock::append_back(std::shared_ptr<IRInstruction> instr)
 {
-	if (back == nullptr) front = back = instr;
+	if (back.lock() == nullptr)
+		front = instr;
 	else {
-		back->setNextInstr(instr);
-		instr->setPreviousInstr(back);
-		back = instr;
+		back.lock()->setNextInstr(instr);
+		instr->setPreviousInstr(back.lock());
 	}
+	back = instr;
+}
+
+void BasicBlock::append_before_back(std::shared_ptr<IRInstruction> i)
+{
+	if (front == back.lock()) {
+		i->setNextInstr(front);
+		front = i;
+	}
+	else {
+		i->setNextInstr(back.lock());
+		i->setPreviousInstr(back.lock()->getPreviousInstr());
+		i->getPreviousInstr()->setNextInstr(i);
+	}
+	back.lock()->setPreviousInstr(i);
 }
 
 void BasicBlock::remove_back()
 {
-	if (back == nullptr) return; //throw error?
-	auto newBack = back->getPreviousInstr();
-	if (newBack == nullptr) front = back = nullptr;
+	if (back.lock() == nullptr) return; //throw error?
+	auto newBack = back.lock()->getPreviousInstr();
+	if (newBack == nullptr) {
+		front = nullptr;
+		back.reset();
+	}
 	else {
 		newBack->setNextInstr(nullptr);
 		back = newBack;
@@ -70,6 +91,47 @@ void BasicBlock::endWith(std::shared_ptr<IRInstruction> instr)
 	else if (tag == IRInstruction::JUMP)
 		link_to_block(std::static_pointer_cast<Jump>(instr)->getTarget());
 	else if (tag == IRInstruction::RET)
-		func->appendReturnInstr(std::static_pointer_cast<Return>(instr));
+		func.lock()->appendReturnInstr(std::static_pointer_cast<Return>(instr));
 	endFlag = true;
+}
+
+void BasicBlock::destroyEdges()
+{
+	to.clear();
+	from.clear();
+	dtInfo.clear();
+}
+
+void replaceInstruction(std::shared_ptr<IRInstruction> old, std::shared_ptr<IRInstruction> _new)
+{
+	if (old->getPreviousInstr() == nullptr) old->getBlock()->setFront(_new);
+	if (old->getNextInstr() == nullptr) old->getBlock()->setBack(_new);
+	old->replaceBy(_new);
+}
+
+void removeInstruction(std::shared_ptr<IRInstruction> i)
+{
+	if (i->getPreviousInstr() == nullptr) i->getBlock()->setFront(i->getNextInstr());
+	if (i->getNextInstr() == nullptr) i->getBlock()->setBack(i->getPreviousInstr());
+	i->removeThis();
+}
+
+void appendInstrBefore(std::shared_ptr<IRInstruction> i, std::shared_ptr<IRInstruction> new_i)
+{
+	auto b = i->getBlock();
+	new_i->setNextInstr(i);
+	new_i->setPreviousInstr(i->getPreviousInstr());
+	if (i->getPreviousInstr() != nullptr) i->getPreviousInstr()->setNextInstr(new_i);
+	i->setPreviousInstr(new_i);
+	if (i == b->getFront()) b->setFront(new_i);
+}
+
+void appendInstrAfter(std::shared_ptr<IRInstruction> i, std::shared_ptr<IRInstruction> new_i)
+{
+	auto b = i->getBlock();
+	new_i->setPreviousInstr(i);
+	new_i->setNextInstr(i->getNextInstr());
+	if (i->getNextInstr() != nullptr) i->getNextInstr()->setPreviousInstr(new_i);
+	i->setNextInstr(new_i);
+	if (i == b->getBack()) b->setBack(new_i);
 }
