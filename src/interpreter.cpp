@@ -1,4 +1,5 @@
 #include "interpreter.h"
+#include <memory.h>
 
 void IR_Interpreter::run()
 {
