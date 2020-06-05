@@ -89,7 +89,7 @@ void MxCompiler::optimize()
 
 void MxCompiler::codegen()
 {
-	std::ofstream asmfile("test.s");
+	std::ofstream asmfile("output.s");
 	codeGenerator = std::make_shared<RISCVCodeGenerator>(ir, asmfile);
 	codeGenerator->generate();
 	codeGenerator->emit();
