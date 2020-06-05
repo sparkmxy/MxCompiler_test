@@ -77,6 +77,7 @@ void MxCompiler::generateIR()
 	std::make_shared<GlobalVarResolver>(ir)->run();
 
 	std::cout << "IR generation completed." << std::endl;
+
 }
 
 void MxCompiler::optimize()
@@ -88,7 +89,7 @@ void MxCompiler::optimize()
 
 void MxCompiler::codegen()
 {
-	std::ofstream asmfile("output.s");
+	std::ofstream asmfile("test.s");
 	codeGenerator = std::make_shared<RISCVCodeGenerator>(ir, asmfile);
 	codeGenerator->generate();
 	codeGenerator->emit();
