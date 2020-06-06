@@ -500,8 +500,7 @@ void IR_Generator::visit(MemberFuncCallExpr * node)
 		arg->accept(*this);
 		call->addArg(getValueReg(arg->getResultOprand()));
 	}
-	auto base = getValueReg(node->getInstance()->getResultOprand());
-	call->setObjRef(base);
+	call->setObjRef(node->getInstance()->getResultOprand());
 	currentBlock->append_back(call);
 	if (node->isControl())
 		currentBlock->endWith(std::make_shared<Branch>(

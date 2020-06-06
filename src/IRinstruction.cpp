@@ -82,7 +82,6 @@ void Call::setDefReg(std::shared_ptr<Register> _defReg)
 
 void Call::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
 {
-	if (result == old) result = _new;
 	for (auto &arg : args)
 		if (arg == old) arg = _new;
 	if (object == old) object = _new;
@@ -91,7 +90,7 @@ void Call::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> 
 
 void Return::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
-	if (Operand::isRegister(value->category()))
+	if (value != nullptr && Operand::isRegister(value->category()))
 		updateRegister(value, table);
 	updateUseRegs();
 }

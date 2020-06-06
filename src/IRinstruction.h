@@ -179,7 +179,7 @@ public:
 	void setResult(const std::shared_ptr<Operand> &_res) { result = _res; }
 
 	std::shared_ptr<Operand> getObjRef() { return object; }
-	void setObjRef(const std::shared_ptr<Operand> &obj) { object = obj; }
+	void setObjRef(const std::shared_ptr<Operand> &obj) { object = obj; updateUseRegs(); }
 
 	// override functions
 	virtual void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
