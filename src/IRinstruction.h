@@ -45,8 +45,6 @@ public:
 	// Warning: do no use this directly, use replaceInstruction() instead
 	void replaceBy(std::shared_ptr<IRInstruction> i);
 	// Warning: do no use this directly, use removeInstruction() instead
-	void removeThis();
-
 	std::vector<std::shared_ptr<Register> > &getUseRegs() { return useRegs; }
 
 	// virtual functions (do nothing by default)

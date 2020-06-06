@@ -158,8 +158,3 @@ void IRInstruction::replaceBy(std::shared_ptr<IRInstruction> i)
 	if(prev.lock() != nullptr) prev.lock()->next = i;
 }
 
-void IRInstruction::removeThis()
-{
-	if (next != nullptr) next->prev = prev;
-	if (prev.lock() != nullptr) prev.lock()->next = next;
-}
