@@ -71,7 +71,8 @@ void Call::updateUseRegs()
 
 std::shared_ptr<Register> Call::getDefReg()
 {
-	if (result != nullptr) return std::static_pointer_cast<Register>(result);
+	if (result != nullptr) 
+		return std::static_pointer_cast<Register>(result);
 	return nullptr;
 }
 

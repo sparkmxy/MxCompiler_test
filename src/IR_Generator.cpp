@@ -486,7 +486,8 @@ void IR_Generator::visit(FuncCallExpr * node)
 		call->addArg(getValueReg(arg->getResultOprand()));
 	}
 
-	call->setObjRef(currentFunction->getObjRef());
+	if(currentClsSymbol ==  func->getEnclosingScope()) 
+		call->setObjRef(currentFunction->getObjRef()); // a class function
 	currentBlock->append_back(call);
 	if (node->isControl())
 		currentBlock->endWith(std::make_shared<Branch>(
