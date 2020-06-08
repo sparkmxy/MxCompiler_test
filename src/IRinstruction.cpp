@@ -134,6 +134,15 @@ void PhiFunction::appendRelatedReg(std::shared_ptr<Register> reg, std::shared_pt
 	relatedReg.push_back(std::make_pair(reg,from));
 }
 
+void PhiFunction::removeOption(std::shared_ptr<BasicBlock> b)
+{
+	for(auto it = relatedReg.begin(); it != relatedReg.end(); it++)
+		if (it->second.lock() == b) {
+			relatedReg.erase(it);
+			break;
+		}
+}
+
 std::shared_ptr<Register> PhiFunction::getDefReg()
 {
 	return dst;

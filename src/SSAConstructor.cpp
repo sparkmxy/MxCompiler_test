@@ -2,6 +2,8 @@
 
 bool SSAConstructor::run()
 {
+	for(auto &f : ir->getFunctions())
+		f->setDT(std::make_shared<DominatorTree>(f));
 	collectVariales();
 	insertPhiFunction();
 	renameVariables();
@@ -24,22 +26,23 @@ void SSAConstructor::insertPhiFunction()
 
 void SSAConstructor::renameVariables()
 {
-	// define global vars
-	auto glbVars = ir->getGlbVars();
-	for (auto &var : glbVars) {
-		auto def_var = std::static_pointer_cast<VirtualReg>(var);
-		auto new_var = def_var->newName(nullptr); // is this ok?
-		def_var->setReachingDef(new_var);
-	}
 
 	auto &functions = ir->getFunctions();
 	for (auto &function : functions) {
 		// define parameters
-		auto args = function->getArgs();
-		for (auto &arg : args) {
-			auto def_var = std::static_pointer_cast<VirtualReg>(arg);
+		auto &args = function->getArgs();
+		for(int i = 0;i<args.size();i++) {
+			auto def_var = std::static_pointer_cast<VirtualReg>(args[i]);
 			auto new_var = def_var->newName(nullptr); // is this ok?
 			def_var->setReachingDef(new_var);
+			args[i] = new_var;
+		}
+
+		if (function->getObjRef() != nullptr) {
+			auto def_var = std::static_pointer_cast<VirtualReg>(function->getObjRef());
+			auto new_var = def_var->newName(nullptr); // is this ok?
+			def_var->setReachingDef(new_var);
+			function->setObjRef(new_var);
 		}
 		renameVariables(function);
 	}
@@ -55,15 +58,19 @@ void SSAConstructor::renameVariables(std::shared_ptr<Function> func)
 			if (instr->getTag() != IRInstruction::PHI) {
 				auto use_regs = instr->getUseRegs();
 				std::unordered_map < std::shared_ptr<Register>, std::shared_ptr<Register> > table;
-				for (auto &var : use_regs) {
-					updateReachingDef(std::static_pointer_cast<VirtualReg>(var), instr, func);
-					table[var] = std::static_pointer_cast<VirtualReg>(var)->getReachingDef();
-					// What if reachingDef is nullptr?
-				}
+				for (auto &var : use_regs) 
+					if(!var->isGlobal()){
+						updateReachingDef(std::static_pointer_cast<VirtualReg>(var), instr, func);
+						auto new_var = std::static_pointer_cast<VirtualReg>(var)->getReachingDef();
+						if (new_var == nullptr)
+							throw Error("SSA: reaching def is nullptr");
+						table[var] = new_var;
+						// What if reachingDef is nullptr?
+					}
 				instr->renameUseRegs(table);
 			}
 
-			if (instr->getDefReg() != nullptr) {
+			if (instr->getDefReg() != nullptr && !instr->getDefReg()->isGlobal()) {
 				auto def_var = std::static_pointer_cast<VirtualReg>(instr->getDefReg());
 				updateReachingDef(def_var, instr, func);
 				auto new_var = def_var->newName(block);
@@ -114,7 +121,7 @@ void SSAConstructor::updateReachingDef
 (std::shared_ptr<VirtualReg> v, std::shared_ptr<IRInstruction> i, std::shared_ptr<Function> f)
 {
 	auto r = v->getReachingDef();
-	while (r != nullptr && r->getDefiningBlock() != nullptr					// globals
+	while (r != nullptr && r->getDefiningBlock() != nullptr					// args
 		&&!f->getDT()->isDominating(r->getDefiningBlock(), i->getBlock()))
 		r = r->getReachingDef();
 	v->setReachingDef(r);
@@ -130,6 +137,7 @@ SSAConstructor::computeIteratedDF(const std::vector<std::shared_ptr<BasicBlock> 
 	while (!workQueue.empty()) {
 		auto x = workQueue.top(); 
 		workQueue.pop();
+		onceInQueue.erase(x);
 		visited.insert(x);
 		visit(x, x, ret);
 	}

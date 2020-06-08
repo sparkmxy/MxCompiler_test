@@ -275,6 +275,7 @@ public:
 	void appendRelatedReg(std::shared_ptr<Register> reg, std::shared_ptr<BasicBlock> from);
 	std::vector<std::pair<std::shared_ptr<Register>,std::weak_ptr<BasicBlock> > > 
 		&getRelatedRegs() { return relatedReg; }
+	void removeOption(std::shared_ptr<BasicBlock> b);
 
 	std::shared_ptr<Register> getDst() { return dst; }
 	std::shared_ptr<Register> getOrigin() { return origin; }

@@ -4,6 +4,7 @@
 #include "IR.h"
 #include "Function.h"
 #include "basicblock.h"
+#include "dominance.h"
 
 /*
 Class : CFG
@@ -24,6 +25,8 @@ protected:
 		std::unordered_set<std::shared_ptr<IRInstruction> > > use;
 
 	void resolveDefineUseChain(std::shared_ptr<Function> f);
+
+	void updateDTinfo(std::shared_ptr<Function> f = nullptr);
 private:
 };
 

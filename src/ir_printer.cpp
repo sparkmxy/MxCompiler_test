@@ -173,7 +173,8 @@ void IR_Printer::visit(PhiFunction * p)
 	auto options = p->getRelatedRegs();
 	os << options.size() << " ";
 	for (auto &opt : options) {
-		opt.first->accept(*this);
+		if (opt.first == nullptr) std::make_shared<Immediate>(0)->accept(*this);
+		else opt.first->accept(*this);
 		os << " ";
 		os << getLabel(opt.second.lock().get()) << " ";
 	}

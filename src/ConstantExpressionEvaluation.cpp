@@ -2,6 +2,7 @@
 
 bool ConstantExpressionEvaluation::run()
 {
+	changed = false;
 	auto &functions = ir->getFunctions();
 	for (auto &f : functions) {
 		resolveDefineUseChain(f);
