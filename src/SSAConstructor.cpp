@@ -59,7 +59,7 @@ void SSAConstructor::renameVariables(std::shared_ptr<Function> func)
 
 			if (instr->getTag() != IRInstruction::PHI) {
 				auto use_regs = instr->getUseRegs();
-				std::unordered_map < std::shared_ptr<Register>, std::shared_ptr<Register> > table;
+				std::map < std::shared_ptr<Register>, std::shared_ptr<Register> > table;
 				for (auto &var : use_regs) 
 					if(!var->isGlobal()){
 						updateReachingDef(std::static_pointer_cast<VirtualReg>(var), instr, func);
@@ -99,7 +99,7 @@ void SSAConstructor::collectVariales()
 	for (auto &function : functions) {
 		auto blocks = function->getBlockList();
 		for (auto &block : blocks) {
-			std::unordered_set<std::shared_ptr<Register> > local;  // the variables defined in the current block
+			std::set<std::shared_ptr<Register> > local;  // the variables defined in the current block
 			auto instr = block->getFront();
 			while (instr != nullptr) {
 				auto useRegs = instr->getUseRegs();
@@ -128,10 +128,10 @@ void SSAConstructor::updateReachingDef
 	v->setReachingDef(r);
 }
 
-std::unordered_set<std::shared_ptr<BasicBlock>> 
+std::set<std::shared_ptr<BasicBlock>> 
 SSAConstructor::computeIteratedDF(const std::vector<std::shared_ptr<BasicBlock> > &S)
 {
-	std::unordered_set<std::shared_ptr<BasicBlock>> ret;
+	std::set<std::shared_ptr<BasicBlock>> ret;
 	visited.clear();
 	onceInQueue.clear();
 	for (auto &node : S) insertNode(node);
@@ -146,7 +146,7 @@ SSAConstructor::computeIteratedDF(const std::vector<std::shared_ptr<BasicBlock> 
 }
 
 void SSAConstructor::visit(std::shared_ptr<BasicBlock> y,const  std::shared_ptr<BasicBlock> &current_x,
-	std::unordered_set<std::shared_ptr<BasicBlock>>& DFplus)
+	std::set<std::shared_ptr<BasicBlock>>& DFplus)
 {
 	auto &JEdges = y->getDTInfo().JEdges;
 	auto &DEdges = y->getDTInfo().DEdges;

@@ -1,6 +1,6 @@
 #include "IRinstruction.h"
 
-void Quadruple::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+void Quadruple::renameUseRegs(std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	updateRegister(src1, table);
 	if (src2 != nullptr) updateRegister(src2, table);
@@ -39,7 +39,7 @@ void Quadruple::setDefReg(std::shared_ptr<Register> _defReg)
 	if (op != STORE) dst = _defReg;
 }
 
-void Branch::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+void Branch::renameUseRegs(std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	updateRegister(condition, table);
 	updateUseRegs();
@@ -58,7 +58,7 @@ void Branch::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand
 	updateUseRegs();
 }
 
-void Call::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+void Call::renameUseRegs(std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	for (int i = 0; i < args.size(); i++) updateRegister(args[i], table);
 	if (object != nullptr && Operand::isRegister(object->category()))
@@ -96,7 +96,7 @@ void Call::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> 
 	updateUseRegs();
 }
 
-void Return::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+void Return::renameUseRegs(std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	if (value != nullptr && Operand::isRegister(value->category()))
 		updateRegister(value, table);
@@ -116,7 +116,7 @@ void Return::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand
 	updateUseRegs();
 }
 
-void Malloc::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+void Malloc::renameUseRegs(std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	updateRegister(size, table);
 	updateUseRegs();
@@ -160,7 +160,7 @@ void PhiFunction::setDefReg(std::shared_ptr<Register> _defReg)
 	dst = _defReg;
 }
 
-void updateRegister(std::shared_ptr<Operand>& reg, std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
+void updateRegister(std::shared_ptr<Operand>& reg, std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
 	if (!Operand::isRegister(reg->category())) return;
 	auto it = table.find(std::static_pointer_cast<Register>(reg));

@@ -48,7 +48,7 @@ public:
 	std::vector<std::shared_ptr<Register> > &getUseRegs() { return useRegs; }
 
 	// virtual functions (do nothing by default)
-	virtual void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	virtual void renameUseRegs(std::map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table) {}
 	virtual void updateUseRegs() {}
 	virtual std::shared_ptr<Register> getDefReg() { return nullptr; }
@@ -107,7 +107,7 @@ public:
 	std::shared_ptr<Operand> getDst() { return dst; }
 
 	//override functions
-	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	void renameUseRegs(std::map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	void updateUseRegs()override;
 	
@@ -145,7 +145,7 @@ public:
 		else if (falseBlock.lock() == old) falseBlock = b;
 	}
 	//override functions (there is no def-register in branch instructions)
-	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	void renameUseRegs(std::map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	void updateUseRegs()override;
 
@@ -180,7 +180,7 @@ public:
 	void setObjRef(const std::shared_ptr<Operand> &obj) { object = obj; updateUseRegs(); }
 
 	// override functions
-	virtual void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	virtual void renameUseRegs(std::map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	virtual void updateUseRegs()override;
 
@@ -212,7 +212,7 @@ public:
 	std::shared_ptr<Operand> getPtr() { return ptr; }
 	void setPtr(const std::shared_ptr<Operand> &_ptr) { ptr = _ptr; }
 	// override functions
-	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	void renameUseRegs(std::map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	void updateUseRegs()override;
 
@@ -239,7 +239,7 @@ public:
 	std::shared_ptr<Operand> getValue() { return value; }
 
 	// override functions (no def-register here)
-	void renameUseRegs(std::unordered_map<std::shared_ptr<Register>,
+	void renameUseRegs(std::map<std::shared_ptr<Register>,
 		std::shared_ptr<Register> > &table)override;
 	void updateUseRegs()override;
 
@@ -291,4 +291,4 @@ private:
 
 // Check if reg is a register and renew it if it is in the table
 void updateRegister(std::shared_ptr<Operand> &reg,
-	std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table);
+	std::map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table);

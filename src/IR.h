@@ -35,7 +35,7 @@ public:
 
 	bool isSSA() { return _isSSA; }
 
-	std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<StaticString> > reg2str;
+	std::map<std::shared_ptr<Register>, std::shared_ptr<StaticString> > reg2str;
 
 	ACCEPT_CFG_VISITOR
 

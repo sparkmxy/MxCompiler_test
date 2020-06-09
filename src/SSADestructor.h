@@ -21,8 +21,8 @@ private:
 			:dst(_dst), src(_src) {}
 	};
 
-	std::unordered_map<std::shared_ptr<BasicBlock>, 
-		std::unordered_set<std::shared_ptr<ParallelCopy> > > parallel_copy;
+	std::map<std::shared_ptr<BasicBlock>, 
+		std::set<std::shared_ptr<ParallelCopy> > > parallel_copy;
 
 	void removePhiFunction(std::shared_ptr<Function> f);
 	void sequentializeParalleCopy(std::shared_ptr<Function> f);

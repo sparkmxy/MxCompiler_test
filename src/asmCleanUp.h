@@ -15,6 +15,6 @@ private:
 
 	void omitUnused();
 
-	std::unordered_map<std::shared_ptr<Register>, bool> isUsed;
+	std::map<std::shared_ptr<Register>, bool> isUsed;
 
 };

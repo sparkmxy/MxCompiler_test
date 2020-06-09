@@ -13,7 +13,7 @@ class PhysicalRegister;
 This struct is for register allocation information
 */
 struct RAinfo {
-	// This might causes memory leak, remember to destruct these unordered_set
+	// This might causes memory leak, remember to destruct these set
 	std::set<std::shared_ptr<Register> > adjList;
 	std::set<std::shared_ptr<MoveAssembly> > moveList;
 	int degree;

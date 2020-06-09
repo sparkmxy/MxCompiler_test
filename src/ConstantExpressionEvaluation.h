@@ -18,7 +18,7 @@ private:
 	bool changed;
 
 	std::queue<std::shared_ptr<IRInstruction> > Q;
-	std::unordered_set<std::shared_ptr<IRInstruction> > inQ;
+	std::set<std::shared_ptr<IRInstruction> > inQ;
 
 	void constExprEval(std::shared_ptr<Function> f);
 	void optimizeBinaryExpr(std::shared_ptr<Quadruple> q);

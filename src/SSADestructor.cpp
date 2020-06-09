@@ -18,7 +18,7 @@ void SSADestructor::removePhiFunction(std::shared_ptr<Function> f)
 	auto &blocks = f->getBlockList();
 	for (auto &b : blocks) {
 		auto edges = b->getBlocksFrom();
-		std::unordered_map<std::shared_ptr<BasicBlock>, std::shared_ptr<BasicBlock>> whereToPut;
+		std::map<std::shared_ptr<BasicBlock>, std::shared_ptr<BasicBlock>> whereToPut;
 		for (auto &B : edges) { // B -> b
 			if (B->getBlocksTo().size() > 1) {
 				auto new_block = std::make_shared<BasicBlock>(f, BasicBlock::PARALLEL_COPY);
@@ -58,11 +58,11 @@ void SSADestructor::sequentializeParalleCopy(std::shared_ptr<Function> f)
 		auto &copies = parallel_copy[b];
 		std::queue<std::shared_ptr<ParallelCopy> > Q;
 
-		std::unordered_map<std::shared_ptr<Operand>, int> degree;
-		std::unordered_map<std::shared_ptr<Operand>, std::shared_ptr<ParallelCopy> > dstToCopy;
+		std::map<std::shared_ptr<Operand>, int> degree;
+		std::map<std::shared_ptr<Operand>, std::shared_ptr<ParallelCopy> > dstToCopy;
 
 		auto new_reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "seq");
-		std::unordered_set<std::shared_ptr<Operand> > breakers;
+		std::set<std::shared_ptr<Operand> > breakers;
 
 		for (auto &c : copies) degree[c->src]++;
 		for (auto &c : copies) {

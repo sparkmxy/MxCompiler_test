@@ -11,7 +11,7 @@ public:
 private:
 
 	std::shared_ptr<IR> ir;
-	std::unordered_map<std::shared_ptr<Function>, int> call_cnt, instr_cnt;
+	std::map<std::shared_ptr<Function>, int> call_cnt, instr_cnt;
 
 	void prepare();
 	void non_recursive();
