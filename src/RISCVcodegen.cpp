@@ -1,15 +1,22 @@
 #include "RISCVcodegen.h"
 #include "peeholeMatching.h"
+#include "asmCleanUp.h"
 
 void RISCVCodeGenerator::generate()
 {
 	auto instructionSelector = InstructionSelector(ir);
 	riscv_program = instructionSelector.getRISCVProgram();
 	std::cout << "assembly code generation is completed.\n";
+
+	auto asmCleanUp = ASMCleanUpPass(riscv_program);
+	asmCleanUp.run();
+
 	auto regalloc = RegisterAllocator(riscv_program);
 	regalloc.run();
 
-	std::make_shared<PeeholeMatchingOptimizer>(riscv_program)->run();
+	auto peeholeOpt = PeeholeMatchingOptimizer(riscv_program);
+	peeholeOpt.run();
+
 	setSP();
 	renameMainFunction();
 	std::cout << "register allocation is completed\n";

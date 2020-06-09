@@ -358,7 +358,7 @@ std::shared_ptr<Register> InstructionSelector::toRegister(std::shared_ptr<Operan
 		if (reg->isForStaticString()) {
 			auto new_reg = std::make_shared<VirtualReg>();
 			currentBlock->append(std::make_shared<LoadAddr>(currentBlock,
-				reg, ir->reg2str[reg]));
+				new_reg, ir->reg2str[reg]));
 			return new_reg;
 		}
 		return reg;
