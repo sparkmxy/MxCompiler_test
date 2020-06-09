@@ -49,7 +49,7 @@ void RISCVCodeGenerator::emit()
 void RISCVCodeGenerator::setSP()
 {
 	for (auto &f : riscv_program->getFunctions()) {
-		int stackSize = f->getStackSize();
+		int stackSize = f->getStackSize() + 4;
 		if (stackSize > 0) {
 			auto sp = (*riscv_program)["sp"];
 			appendBefore(f->getEntry()->getFront(), std::make_shared<I_type>(

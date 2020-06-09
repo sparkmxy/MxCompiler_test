@@ -304,7 +304,6 @@ void IR_Generator::visit(IdentifierExpr * node)
 	else if (symbol->category() == Symbol::VAR) { 
 		// for normal variable, return its reference directly
 		auto result = std::static_pointer_cast<VarSymbol>(symbol)->getReg();
-		//auto result = getValueReg(ref);
 		node->setResultOprand(result);
 		if (node->isControl())
 			currentBlock->endWith(std::make_shared<Branch>(
