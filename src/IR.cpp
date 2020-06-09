@@ -2,6 +2,8 @@
 
 IR::IR()
 {
+	_isSSA = false;
+
 	auto intType = std::make_shared<BuiltinType>(BuiltinType::INT);
 	auto stringType = std::make_shared<BuiltinType>(BuiltinType::STRING);
 	auto boolType = std::make_shared<BuiltinType>(BuiltinType::BOOL);

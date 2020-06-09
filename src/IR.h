@@ -31,9 +31,15 @@ public:
 		return n.length() > 7 && n.substr(0, 7) == "string.";
 	}
 
+	void setSSAflag(bool b) { _isSSA = b; }
+
+	bool isSSA() { return _isSSA; }
+
 	ACCEPT_CFG_VISITOR
 
 private:
+	bool _isSSA;
+
 	std::vector<std::shared_ptr<Register> > glbVars;
 	std::vector<std::shared_ptr<Function> > functions, builtInFunctions;
 	std::vector<std::shared_ptr<StaticString> > stringConstants;

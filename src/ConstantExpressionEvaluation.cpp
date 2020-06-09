@@ -54,7 +54,7 @@ void ConstantExpressionEvaluation::constExprEval(std::shared_ptr<Function> f)
 				if (tp == Operand::IMM)
 					propagateImm(i, std::static_pointer_cast<Register>(quad->getDst()),
 						std::static_pointer_cast<Immediate>(quad->getSrc1()));
-				else if (tp == Operand::REG_REF || tp == Operand::REG_VAL)
+				else if (Operand::isRegister(tp))
 					copyPropagate(i, std::static_pointer_cast<Register>(quad->getDst()),
 						std::static_pointer_cast<Register>(quad->getSrc1()));
 			}
@@ -117,7 +117,7 @@ void ConstantExpressionEvaluation::optimizeCall(std::shared_ptr<Call> c)
 	}
 	if (!ir->isStringFunction(f)) return;
 	
-	bool isThisStaticStr = c->getObjRef()->category() == Operand::STATICSTR;
+	bool isThisStaticStr = c->getObjRef() != nullptr && c->getObjRef()->category() == Operand::STATICSTR;
 	bool isArg1StaticStr = c->getArgs().size() > 0 && c->getArgs()[0]->category() == Operand::STATICSTR;
 	bool isArg2StaticStr = c->getArgs().size() > 1 && c->getArgs()[1]->category() == Operand::STATICSTR;
 	
@@ -247,7 +247,6 @@ void ConstantExpressionEvaluation::copyPropagate(std::shared_ptr<IRInstruction> 
 {
 	bool usedByPhi = false;
 	auto users = use[old];
-	auto &usersOfNewReg = use[_new];
 	for (auto &user : users)
 		if (user != i) {
 			if (user->getTag() == IRInstruction::PHI) usedByPhi = true;  // keep phi-functions unchanged
@@ -255,7 +254,7 @@ void ConstantExpressionEvaluation::copyPropagate(std::shared_ptr<IRInstruction> 
 				changed = true;
 				use[old].erase(user);
 				user->replaceUseReg(old, _new);
-				usersOfNewReg.insert(user);
+				use[_new].insert(user);
 				if (inQ.find(user) == inQ.end()) {
 					Q.push(user);
 					inQ.insert(user);
@@ -263,7 +262,7 @@ void ConstantExpressionEvaluation::copyPropagate(std::shared_ptr<IRInstruction> 
 			}
 		}
 	if (!usedByPhi) {
-		usersOfNewReg.erase(i);
+		use[_new].erase(i);
 		removeInstruction(i);
 	}
 }

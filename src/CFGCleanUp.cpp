@@ -4,8 +4,8 @@ bool CFGCleanUpPass::run()
 {
 	changed = false;
 	for (auto &f : ir->getFunctions()) {
-		omitTrivialBlocks(f);
 		rewriteTrivialBranches(f);
+		if(!ir->isSSA()) omitTrivialBlocks(f);
 	}
 	return changed;
 }

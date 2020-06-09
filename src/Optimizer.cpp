@@ -1,10 +1,11 @@
 #include "Optimizer.h"
 #include "ir_printer.h"
+#include <fstream>
 
 void Optimizer::optimize()
 {
-	std::make_shared<SSAConstructor>(ir)->run();
 
+	std::make_shared<SSAConstructor>(ir)->run();
 	auto CEE = ConstantExpressionEvaluation(ir);
 	auto cfgClearUp = CFGCleanUpPass(ir);
 	bool changed;

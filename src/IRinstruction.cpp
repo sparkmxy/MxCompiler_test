@@ -54,7 +54,7 @@ void Branch::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand
 
 void Call::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
 {
-	for (auto &arg : args) updateRegister(arg, table);
+	for (int i = 0; i < args.size(); i++) updateRegister(args[i], table);
 	if (object != nullptr && Operand::isRegister(object->category()))
 		updateRegister(object, table);
 }
@@ -83,8 +83,8 @@ void Call::setDefReg(std::shared_ptr<Register> _defReg)
 
 void Call::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
 {
-	for (auto &arg : args)
-		if (arg == old) arg = _new;
+	for(int i =0 ;i<args.size();i++)
+		if (args[i] == old) args[i] = _new;
 	if (object == old) object = _new;
 	updateUseRegs();
 }

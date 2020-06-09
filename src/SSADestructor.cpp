@@ -9,6 +9,7 @@ bool SSADestructor::run()
 		f->setDT(std::make_shared<DominatorTree>(f));
 		sequentializeParalleCopy(f);
 	}
+	ir->setSSAflag(false);
 	return true;
 }
 
