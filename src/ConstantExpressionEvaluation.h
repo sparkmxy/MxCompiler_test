@@ -29,5 +29,7 @@ private:
 
 	void copyPropagate(std::shared_ptr<IRInstruction> i,
 		std::shared_ptr<Register> old, std::shared_ptr<Register> _new);
+
+	bool isForStaticString(std::shared_ptr<Operand> x);
 };
 

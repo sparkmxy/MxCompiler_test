@@ -33,15 +33,17 @@ void ConstantExpressionEvaluation::constExprEval(std::shared_ptr<Function> f)
 			if (op == Quadruple::LOAD || op == Quadruple::STORE) continue;
 			else if (op == Quadruple::INV) {
 				if (quad->getSrc1()->category() == Operand::IMM) {
+					changed = true;
 					auto move = std::make_shared<Quadruple>(quad->getBlock(), Quadruple::MOVE, quad->getDst(),
 						std::make_shared<Immediate>(~std::static_pointer_cast<Immediate>(quad->getSrc1())->getValue()));
-					replaceInstruction(i,move);
+					replaceInstruction(i, move);
 					Q.push(move);
 					inQ.insert(move);
 				}
 			}
 			else if (op == Quadruple::NEG) {
 				if (quad->getSrc1()->category() == Operand::IMM) {
+					changed = true;
 					auto move = std::make_shared<Quadruple>(quad->getBlock(), Quadruple::MOVE, quad->getDst(),
 						std::make_shared<Immediate>(-std::static_pointer_cast<Immediate>(quad->getSrc1())->getValue()));
 					replaceInstruction(i, move);
@@ -108,6 +110,8 @@ void ConstantExpressionEvaluation::optimizeCall(std::shared_ptr<Call> c)
 			changed = true;
 			int val = std::static_pointer_cast<Immediate>(c->getArgs()[0])->getValue();
 			auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__str");
+			reg->markAsStaticString();
+
 			auto str = std::make_shared<StaticString>(reg, std::to_string(val));
 			ir->addStringConst(str);
 			auto move = std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(), reg);
@@ -116,18 +120,20 @@ void ConstantExpressionEvaluation::optimizeCall(std::shared_ptr<Call> c)
 		return;
 	}
 	if (!ir->isStringFunction(f)) return;
-	
-	bool isThisStaticStr = c->getObjRef() != nullptr && c->getObjRef()->category() == Operand::STATICSTR;
-	bool isArg1StaticStr = c->getArgs().size() > 0 && c->getArgs()[0]->category() == Operand::STATICSTR;
-	bool isArg2StaticStr = c->getArgs().size() > 1 && c->getArgs()[1]->category() == Operand::STATICSTR;
-	
-	auto obj = isThisStaticStr ? std::static_pointer_cast<StaticString>(c->getObjRef()) : nullptr;
-	auto lhs = isArg1StaticStr ? std::static_pointer_cast<StaticString>(c->getArgs()[0]) : nullptr;
-	auto rhs = isArg2StaticStr ? std::static_pointer_cast<StaticString>(c->getArgs()[1]) : nullptr;
+
+	bool isThisStaticStr = isForStaticString(c->getObjRef());
+	bool isArg1StaticStr = c->getArgs().size() > 0 && isForStaticString(c->getArgs()[0]);
+	bool isArg2StaticStr = c->getArgs().size() > 1 && isForStaticString(c->getArgs()[1]);
+
+	auto obj = isThisStaticStr ? ir->reg2str[std::static_pointer_cast<Register>(c->getObjRef())]  : nullptr;
+	auto lhs = isArg1StaticStr ? ir->reg2str[std::static_pointer_cast<Register>(c->getArgs()[0])] : nullptr;
+	auto rhs = isArg2StaticStr ? ir->reg2str[std::static_pointer_cast<Register>(c->getArgs()[1])] : nullptr;
 	if (f == ir->stringAdd) {
 		if (isArg1StaticStr && isArg2StaticStr) {
 			changed = true;
 			auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__str");
+			reg->markAsStaticString();
+
 			auto str = std::make_shared<StaticString>(reg, lhs->getText() + rhs->getText());
 			auto move = std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(), reg);
 			ir->addStringConst(str);
@@ -188,19 +194,21 @@ void ConstantExpressionEvaluation::optimizeCall(std::shared_ptr<Call> c)
 		if (isThisStaticStr && c->getArgs()[0]->category() == Operand::IMM) {
 			changed = true;
 			int pos = std::static_pointer_cast<Immediate>(c->getArgs()[0])->getValue();
-			replaceInstruction(c,std::make_shared<Quadruple>(
+			replaceInstruction(c, std::make_shared<Quadruple>(
 				c->getBlock(), Quadruple::MOVE, c->getResult(),
 				std::make_shared<Immediate>((int)obj->getText()[pos])));
 		}
 	}
 	else if (f == ir->substring) {
-		if (isThisStaticStr && c->getArgs()[0]->category() == Operand::IMM && c->getArgs()[1]->category() == Operand::IMM){
+		if (isThisStaticStr && c->getArgs()[0]->category() == Operand::IMM && c->getArgs()[1]->category() == Operand::IMM) {
 			changed = true;
 			int l = std::static_pointer_cast<Immediate>(c->getArgs()[0])->getValue();
 			int r = std::static_pointer_cast<Immediate>(c->getArgs()[1])->getValue();
 			auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__str");
+			reg->markAsStaticString();
+
 			auto str = std::make_shared<StaticString>(reg, obj->getText().substr(l, r - l + 1));
-			replaceInstruction(c,std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(), reg));
+			replaceInstruction(c, std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(), reg));
 			ir->addStringConst(str);
 		}
 	}
@@ -210,14 +218,14 @@ void ConstantExpressionEvaluation::optimizeCall(std::shared_ptr<Call> c)
 			int x;
 			std::stringstream ss(obj->getText());
 			ss >> x;
-			replaceInstruction(c,std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(),
+			replaceInstruction(c, std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(),
 				std::make_shared<Immediate>(x)));
 		}
 	}
 	else if (f == ir->stringLength) {
 		if (isThisStaticStr) {
 			changed = true;
-			replaceInstruction(c,std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(),
+			replaceInstruction(c, std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(),
 				std::make_shared<Immediate>(obj->getText().length())));
 		}
 	}
@@ -227,7 +235,7 @@ void ConstantExpressionEvaluation::propagateImm(std::shared_ptr<IRInstruction> i
 {
 	bool usedByPhi = false;
 	auto users = use[old];
-	for(auto &user : users)
+	for (auto &user : users)
 		if (user != i) {
 			if (user->getTag() == IRInstruction::PHI) usedByPhi = true;  // keep phi-functions unchanged
 			else {
@@ -265,6 +273,12 @@ void ConstantExpressionEvaluation::copyPropagate(std::shared_ptr<IRInstruction> 
 		use[_new].erase(i);
 		removeInstruction(i);
 	}
+}
+
+bool ConstantExpressionEvaluation::isForStaticString(std::shared_ptr<Operand> x)
+{
+	return x != nullptr && Operand::isRegister(x->category())
+		&& std::static_pointer_cast<Register>(x)->isForStaticString();
 }
 
 

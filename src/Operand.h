@@ -58,7 +58,7 @@ it is just a temperory value in the register.
 class Register : public Operand {
 public:
 	Register(): global(false){}
-	Register(Category _tag, std::string _name) : name(_name),tag(_tag),global(false){
+	Register(Category _tag, std::string _name) : name(_name),tag(_tag),global(false), isForStaticStr(false){
 		if (!isRegister(_tag)) throw Error("creating illeagal register.");
 	}
 	std::string getName() { return name; }
@@ -68,11 +68,14 @@ public:
 	bool isGlobal() { return global; }
 	void markAsGlobal() { global = true; }
 
+	void markAsStaticString() { global = isForStaticStr = true; }
+	bool isForStaticString() { return isForStaticStr; }
+
 	RAinfo &info() { return raInfo; }
 
 	ACCEPT_CFG_VISITOR
 private:
-	bool global;
+	bool global, isForStaticStr;
 	std::string name;
 	Category tag;
 

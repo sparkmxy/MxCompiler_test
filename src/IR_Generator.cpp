@@ -303,8 +303,8 @@ void IR_Generator::visit(IdentifierExpr * node)
 	}
 	else if (symbol->category() == Symbol::VAR) { 
 		// for normal variable, return its reference directly
-		auto ref = std::static_pointer_cast<VarSymbol>(symbol)->getReg();
-		auto result = getValueReg(ref);
+		auto result = std::static_pointer_cast<VarSymbol>(symbol)->getReg();
+		//auto result = getValueReg(ref);
 		node->setResultOprand(result);
 		if (node->isControl())
 			currentBlock->endWith(std::make_shared<Branch>(
@@ -604,9 +604,9 @@ void IR_Generator::visit(BoolValue * node)
 void IR_Generator::visit(StringValue * node)
 {
 	auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__str");  // 
-	auto str = std::make_shared<StaticString>(reg, node->getText());
-	node->setResultOprand(str);  // reg or str?
-	reg->markAsGlobal();
+	auto str = std::make_shared<StaticString>(reg, node->getText().substr(1, node->getText().length() - 2)); //get rid of ''
+	node->setResultOprand(reg);  // reg or str?
+	reg->markAsStaticString();
 	ir->addStringConst(str);
 }
 

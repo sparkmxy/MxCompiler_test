@@ -35,6 +35,8 @@ public:
 
 	bool isSSA() { return _isSSA; }
 
+	std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<StaticString> > reg2str;
+
 	ACCEPT_CFG_VISITOR
 
 private:
@@ -43,6 +45,8 @@ private:
 	std::vector<std::shared_ptr<Register> > glbVars;
 	std::vector<std::shared_ptr<Function> > functions, builtInFunctions;
 	std::vector<std::shared_ptr<StaticString> > stringConstants;
+
+
 	
 	std::shared_ptr<Function> 
 		newBuiltInFunc(const std::string &name, std::shared_ptr<Type> retType = nullptr);

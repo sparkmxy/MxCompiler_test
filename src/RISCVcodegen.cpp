@@ -31,7 +31,7 @@ void RISCVCodeGenerator::emit()
 		auto name = "str" + std::to_string(stringLabel[str->getReg()]);
 		os << '\t' << ".globl\t" << name << '\n';
 		os << name << ":\n";
-		os << "\t.string\t" + str->getText() << "\n\n";
+		os << "\t.string\t\"" + str->getText() << "\"\n\n";
 	}
 
 	os << '\t' << ".text\n";
@@ -42,7 +42,7 @@ void RISCVCodeGenerator::emit()
 void RISCVCodeGenerator::setSP()
 {
 	for (auto &f : riscv_program->getFunctions()) {
-		int stackSize = f->getStackSize() + 4;
+		int stackSize = f->getStackSize();
 		if (stackSize > 0) {
 			auto sp = (*riscv_program)["sp"];
 			appendBefore(f->getEntry()->getFront(), std::make_shared<I_type>(

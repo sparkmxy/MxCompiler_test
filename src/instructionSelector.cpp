@@ -353,11 +353,14 @@ bool InstructionSelector::isRtype(std::shared_ptr<Operand> lhs, Quadruple::Opera
 std::shared_ptr<Register> InstructionSelector::toRegister(std::shared_ptr<Operand> x)
 {
 	auto c = x->category();
-	if (Operand::isRegister(c)) return std::static_pointer_cast<Register>(x);
-	if (c == Operand::STATICSTR) {
-		auto reg = std::make_shared<VirtualReg>();
-		currentBlock->append(std::make_shared<LoadAddr>(currentBlock, 
-			reg,std::static_pointer_cast<StaticString>(x)));
+	if (Operand::isRegister(c)){
+		auto reg = std::static_pointer_cast<Register>(x);
+		if (reg->isForStaticString()) {
+			auto new_reg = std::make_shared<VirtualReg>();
+			currentBlock->append(std::make_shared<LoadAddr>(currentBlock,
+				reg, ir->reg2str[reg]));
+			return new_reg;
+		}
 		return reg;
 	}
 	if (c == Operand::IMM) {
