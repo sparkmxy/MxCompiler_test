@@ -69,7 +69,23 @@ void ConstantExpressionEvaluation::constExprEval(std::shared_ptr<Function> f)
 
 void ConstantExpressionEvaluation::optimizeBinaryExpr(std::shared_ptr<Quadruple> q)
 {
-	if (q->getSrc1()->category() != Operand::IMM || q->getSrc2()->category() != Operand::IMM) return;
+	if (q->getSrc1()->category() != Operand::IMM || q->getSrc2()->category() != Operand::IMM) {
+		auto src1 = q->getSrc1();
+		auto src2 = q->getSrc2();
+	
+		if (src2->category() != Operand::IMM) std::swap(src1, src2);
+		if (src2->category() == Operand::IMM && 
+			std::static_pointer_cast<Immediate>(q->getSrc2())->getValue() == 0) { 
+			src1 = getResultWithZero(src1, q->getOp());
+			if (src1 != nullptr) {
+				changed = true;
+				auto move = std::make_shared<Quadruple>(q->getBlock(), Quadruple::MOVE, q->getDst(), src1);
+				replaceInstruction(q, move);
+			}
+		}
+		return;
+	}
+	changed = true;
 	int x = std::static_pointer_cast<Immediate>(q->getSrc1())->getValue();
 	int y = std::static_pointer_cast<Immediate>(q->getSrc2())->getValue();
 	int result;
@@ -279,6 +295,13 @@ bool ConstantExpressionEvaluation::isForStaticString(std::shared_ptr<Operand> x)
 {
 	return x != nullptr && Operand::isRegister(x->category())
 		&& std::static_pointer_cast<Register>(x)->isForStaticString();
+}
+
+std::shared_ptr<Operand> ConstantExpressionEvaluation::getResultWithZero(std::shared_ptr<Operand> x, Quadruple::Operator op)
+{
+	if (op == Quadruple::TIMES || op == Quadruple::BITAND) return std::make_shared<Immediate>(0);
+	if (op == Quadruple::ADD || op == Quadruple::MINUS || op == Quadruple::BITXOR || op == Quadruple::BITOR) return x;
+	return nullptr;
 }
 
 

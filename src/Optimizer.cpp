@@ -7,10 +7,11 @@ void Optimizer::optimize()
 
 	std::make_shared<SSAConstructor>(ir)->run();
 
+	/*
 	std::ofstream os("temp.txt");
 	std::make_shared<IR_Printer>(ir, os)->print();
 	os.close();
-
+	*/
 	auto CEE = ConstantExpressionEvaluation(ir);
 	auto cfgClearUp = CFGCleanUpPass(ir);
 	bool changed;

@@ -31,5 +31,7 @@ private:
 		std::shared_ptr<Register> old, std::shared_ptr<Register> _new);
 
 	bool isForStaticString(std::shared_ptr<Operand> x);
+
+	std::shared_ptr<Operand> getResultWithZero(std::shared_ptr<Operand> x, Quadruple::Operator op);
 };
 
