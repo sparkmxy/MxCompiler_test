@@ -1,7 +1,6 @@
 PROGRAM = mx++
-CXX = g++
-CXXFLAGS = -std=c++17
-
+CXX = clang++
+CXXFLAGS = -g -std=c++17
 CPP_FILES = $(wildcard src/*.cpp)
 H_FILES = $(wildcard src/*.h)
 

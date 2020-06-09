@@ -4,7 +4,6 @@
 
 void Optimizer::optimize()
 {
-
 	std::make_shared<SSAConstructor>(ir)->run();
 
 	/*

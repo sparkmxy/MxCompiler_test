@@ -8,8 +8,8 @@ void RISCVCodeGenerator::generate()
 	riscv_program = instructionSelector.getRISCVProgram();
 	std::cout << "assembly code generation is completed.\n";
 
-	auto asmCleanUp = ASMCleanUpPass(riscv_program);
-	asmCleanUp.run();
+	//auto asmCleanUp = ASMCleanUpPass(riscv_program);
+	//asmCleanUp.run();
 
 	auto regalloc = RegisterAllocator(riscv_program);
 	regalloc.run();
