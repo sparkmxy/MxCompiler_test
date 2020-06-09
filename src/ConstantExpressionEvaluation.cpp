@@ -223,7 +223,7 @@ void ConstantExpressionEvaluation::optimizeCall(std::shared_ptr<Call> c)
 			auto reg = std::make_shared<VirtualReg>(Operand::REG_VAL, "__str");
 			reg->markAsStaticString();
 
-			auto str = std::make_shared<StaticString>(reg, obj->getText().substr(l, r - l + 1));
+			auto str = std::make_shared<StaticString>(reg, obj->getText().substr(l, r - l));
 			replaceInstruction(c, std::make_shared<Quadruple>(c->getBlock(), Quadruple::MOVE, c->getResult(), reg));
 			ir->addStringConst(str);
 		}

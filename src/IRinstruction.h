@@ -114,7 +114,7 @@ public:
 	void replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new) override;
 
 	std::shared_ptr<Register> getDefReg() override;
-	void setDefReg(std::shared_ptr<Register> _defReg) override { dst = _defReg; }
+	void setDefReg(std::shared_ptr<Register> _defReg) override;
 
 	ACCEPT_CFG_VISITOR
 private:

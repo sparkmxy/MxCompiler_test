@@ -24,6 +24,7 @@ void Quadruple::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Oper
 {
 	if (src1 == old) src1 = _new;
 	if (src2 == old) src2 = _new;
+	if (op == STORE && dst == old) dst = _new;
 	updateUseRegs();
 }
 
@@ -31,6 +32,11 @@ std::shared_ptr<Register> Quadruple::getDefReg()
 {
 	if (op == STORE) return nullptr;
 	return std::static_pointer_cast<Register>(dst);
+}
+
+void Quadruple::setDefReg(std::shared_ptr<Register> _defReg)
+{
+	if (op != STORE) dst = _defReg;
 }
 
 void Branch::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shared_ptr<Register>>& table)
