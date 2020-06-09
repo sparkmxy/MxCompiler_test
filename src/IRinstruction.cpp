@@ -57,6 +57,7 @@ void Call::renameUseRegs(std::unordered_map<std::shared_ptr<Register>, std::shar
 	for (int i = 0; i < args.size(); i++) updateRegister(args[i], table);
 	if (object != nullptr && Operand::isRegister(object->category()))
 		updateRegister(object, table);
+	updateUseRegs();
 }
 
 void Call::updateUseRegs()
@@ -83,7 +84,7 @@ void Call::setDefReg(std::shared_ptr<Register> _defReg)
 
 void Call::replaceUseReg(std::shared_ptr<Operand> old, std::shared_ptr<Operand> _new)
 {
-	for(int i =0 ;i<args.size();i++)
+	for (int i = 0; i < args.size(); i++)
 		if (args[i] == old) args[i] = _new;
 	if (object == old) object = _new;
 	updateUseRegs();

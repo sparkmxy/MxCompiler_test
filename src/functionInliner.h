@@ -6,6 +6,10 @@
 
 class FunctionInliner {
 public:
-
+	void run();
 private:
+
+	void prepare();
+	void non_recursive();
+	void recursive();
 };
