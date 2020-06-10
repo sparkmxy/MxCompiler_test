@@ -177,7 +177,7 @@ void IR_Generator::visit(ForStmt * node)
 		bodyBlk : std::make_shared<BasicBlock>(currentFunction, BasicBlock::FOR_COND);
 	auto iterBlk = iter == nullptr ?
 		condBlk : std::make_shared<BasicBlock>(currentFunction, BasicBlock::FOR_ITER);
-	node->setStartBlk(condBlk);
+	node->setStartBlk(iterBlk);
 	node->setFinalBlk(finalBlk);
 	// Jump to condition if there is, or else jump to body.
 	currentBlock->endWith(std::make_shared<Jump>(currentBlock, condBlk));
@@ -521,7 +521,7 @@ void IR_Generator::visit(MemberFuncCallExpr * node)
 		arg->accept(*this);
 		call->addArg(getValueReg(arg->getResultOprand()));
 	}
-	call->setObjRef(node->getInstance()->getResultOprand());
+	call->setObjRef(getValueReg(node->getInstance()->getResultOprand()));
 	currentBlock->append_back(call);
 	if (node->isControl())
 		currentBlock->endWith(std::make_shared<Branch>(
