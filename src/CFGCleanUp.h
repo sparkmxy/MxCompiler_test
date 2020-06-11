@@ -17,4 +17,11 @@ private:
 
 	void omitTrivialBlocks(std::shared_ptr<Function> f);
 	void rewriteTrivialBranches(std::shared_ptr<Function> f);
+	void convertMultiplyByConst(std::shared_ptr<Function> f);
+
+	int _log2(int x) {
+		int l = 0;
+		while ((1 << (l + 1)) <= x)l++;
+		return l;
+	}
 };
