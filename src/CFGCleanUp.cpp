@@ -6,7 +6,10 @@ bool CFGCleanUpPass::run()
 	for (auto &f : ir->getFunctions()) {
 		rewriteTrivialBranches(f);
 		convertMultiplyByConst(f);
-		if(!ir->isSSA()) omitTrivialBlocks(f);
+		if (!ir->isSSA()) {
+			omitTrivialBlocks(f);
+			mergeBlockChain(f);
+		}
 	}
 	return changed;
 }
@@ -78,4 +81,26 @@ void CFGCleanUpPass::convertMultiplyByConst(std::shared_ptr<Function> f) {
 					}
 				}
 			}
+}
+
+void CFGCleanUpPass::mergeBlockChain(std::shared_ptr<Function> f)
+{
+	auto blocks = f->getBlockList();
+	for (int i = blocks.size() - 1; i >= 0; i--) {
+		auto b = blocks[i];
+		if (b->getBlocksTo().size() == 1) {
+			auto to_block = *blocks[i]->getBlocksTo().begin();
+			if (to_block != f->getEntry() && to_block->getBlocksFrom().size() == 1 && to_block != b) {
+				changed = true;
+				// merge to_block to  b
+				for (auto &bb : to_block->getBlocksTo()) bb->replaceBlockFrom(to_block, b);
+				b->remove_back();
+				b->append_back(to_block->getFront());
+				b->setBack(to_block->getBack());
+				for (auto i = to_block->getFront(); i != nullptr; i = i->getNextInstr()) i->setBlock(b);
+
+				if (to_block == f->getExit()) f->setExit(b);
+			}
+		}
+	}
 }

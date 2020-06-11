@@ -18,6 +18,7 @@ private:
 	void omitTrivialBlocks(std::shared_ptr<Function> f);
 	void rewriteTrivialBranches(std::shared_ptr<Function> f);
 	void convertMultiplyByConst(std::shared_ptr<Function> f);
+	void mergeBlockChain(std::shared_ptr<Function> f);
 
 	int _log2(int x) {
 		int l = 0;
