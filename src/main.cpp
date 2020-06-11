@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 		else if(std::string(argv[i]) == "--codegen"){
 			try
 			{
-				compiler.compile(false);
+				compiler.compile();
 			}
 			catch(const std::exception& e)
 			{
@@ -28,17 +28,5 @@ int main(int argc, char **argv) {
 			}
 			
 		}
-		else if(std::string(argv[i]) == "--opt"){
-			try
-			{
-				compiler.compile(true);
-			}
-			catch(const std::exception& e)
-			{
-				std::cerr << e.what() << '\n';
-			}
-			
-		}
-		
 	return 0;
 }
